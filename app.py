@@ -1,74 +1,49 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, jsonify, request
 import psycopg2
 import os
-from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
-
-# Load environment variables (for local development only)
-load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
 
-# Get database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL")
+# PostgreSQL credentials from environment variables (RECOMMENDED)
+DB_HOST = os.environ.get("DB_HOST", "tax-analyzer-db.postgres.database.azure.com")
+DB_NAME = os.environ.get("DB_NAME", "postgres")
+DB_USER = os.environ.get("DB_USER", "deploytejasai@outlook.com")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "your_password_here")
+DB_PORT = os.environ.get("DB_PORT", "5432")
 
-# Connect to the PostgreSQL database
-def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+def get_connection():
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            port=DB_PORT,
+            sslmode="require"
+        )
+        return conn
+    except Exception as e:
+        print("❌ Database connection failed:", e)
+        return None
 
-@app.route('/')
+@app.route("/api/test-db", methods=["GET"])
+def test_db():
+    conn = get_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error."}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        db_version = cur.fetchone()
+        cur.close()
+        conn.close()
+        return jsonify({"message": "Database connected", "version": db_version})
+    except Exception as e:
+        return jsonify({"error": f"Query failed: {e}"}), 500
+
+@app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Azure backend for tax invoice is live."})
+    return "✅ Backend running!"
 
-@app.route('/register', methods=['POST'])
-def register():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({"error": "Username and password are required"}), 400
-
-    hashed_password = generate_password_hash(password)
-
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"message": "User registered successfully"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({"error": "Username and password are required"}), 400
-
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT password FROM users WHERE username = %s", (username,))
-        user = cur.fetchone()
-        cur.close()
-        conn.close()
-
-        if user and check_password_hash(user[0], password):
-            return jsonify({"message": "Login successful"}), 200
-        else:
-            return jsonify({"error": "Invalid credentials"}), 401
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+if __name__ == "__main__":
+    app.run(debug=True)
