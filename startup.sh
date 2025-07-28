@@ -2,24 +2,30 @@
 
 echo "--- STARTUP SCRIPT STARTED ---"
 
-# Update and install system dependencies
-echo "--- Updating apt-get ---"
+# Ensure system is up to date
 apt-get update -y
 
-echo "--- Installing Tesseract and dependencies ---"
-apt-get install -y tesseract-ocr tesseract-ocr-eng libpq-dev poppler-utils
+# Install system dependencies
+apt-get install -y \
+  tesseract-ocr \
+  tesseract-ocr-eng \
+  libpq-dev \
+  poppler-utils
 
-echo "--- Setting environment variables ---"
+# Set environment variables
 export PYTHONPATH="${PYTHONPATH}:/home/site/wwwroot"
 export FLASK_ENV=production
 
-echo "--- Creating logs directory ---"
-mkdir -p /home/site/wwwroot/logs
+# Move to working directory
+cd /home/site/wwwroot
 
-echo "--- Installing Python packages ---"
+# Log directory
+mkdir -p logs
+
+# Install Python packages
+pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "--- Initialization complete ---"
+# Start Gunicorn
 echo "--- Starting Gunicorn ---"
-
-exec gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile '-' --error-logfile '-' app:app
+exec gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile - app:app
