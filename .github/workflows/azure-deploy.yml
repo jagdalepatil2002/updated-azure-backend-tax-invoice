@@ -78,5 +78,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'tax-analyzer-backend'
+          app-name: 'tax-analyzer-backend-updated' # <-- This name has been updated
           slot-name: 'Production'
